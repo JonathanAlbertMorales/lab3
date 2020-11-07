@@ -269,27 +269,27 @@ jobs:
       - revert-migration
   smoke-tests:
     docker:
-        - image: python:3.7-alpine3.11
+      - image: python:3.7-alpine3.11
     steps:
-       - run: apk add --update curl
-       - run: pip install awscli
-       - attach_workspace:
-            at: /tmp/workspace
-       - run: 
-            name: smoke test for frontend
-            command: |
-              URL="http://udapeople-frontend-deployment-${CIRCLE_WORKFLOW_ID:0:7}.s3-website-us-east-1.amazonaws.com/index.html#/employees"    
-              if curl -s --head ${URL}
-              then
-               return 0
-              else
-               return 1
-              fi
-       - run:
-          name: smoketest for backend
-          command: | 
-                API_URL=$(curl -H "token: c5c72391-6f79-4966-be00-c6c4d4c2ef3d" --request GET https://api.memstash.io/values/backend-url)
-                curl "http://${API_URL}:3030/api/status"
+      - run: apk add --update curl
+      - run: pip install awscli
+      - attach_workspace:
+          at: /tmp/workspace
+      - run: 
+          name: smoke test for frontend
+          command: |
+            URL="http://udapeople-frontend-deployment-${CIRCLE_WORKFLOW_ID:0:7}.s3-website-us-east-1.amazonaws.com/index.html#/employees"    
+            if curl -s --head ${URL}
+            then
+              return 0
+            else
+              return 1
+            fi
+      - run:
+        name: smoketest for backend
+        command: | 
+              API_URL=$(curl -H "token: c5c72391-6f79-4966-be00-c6c4d4c2ef3d" --request GET https://api.memstash.io/values/backend-url)
+              curl "http://${API_URL}:3030/api/status"
       - destroy-environment
       - revert-migration
 workflows:
