@@ -139,8 +139,32 @@ jobs:
           name: Add back-end ip to ansible inventory
           command: |
               curl -H "Content-Type: text/plain" -H "token: c5c72391-6f79-4966-be00-c6c4d4c2ef3d" --request PUT --data "$(aws ec2 describe-instances  --query 'Reservations[*].Instances[*].PublicIpAddress' --filters "Name=tag:Name, Values=backend-deployment-${CIRCLE_WORKFLOW_ID:0:7}" --output=text)" https://api.memstash.io/values/backend-url   
-
-  
+  configure-infrastructure:
+      docker:
+        - image: python:3.7-alpine3.11
+      steps:
+        - checkout
+        - attach_workspace:
+            at: /tmp/workspace
+        - add_ssh_keys:
+            fingerprints: ["aa:81:14:df:30:45:ca:43:bd:d2:28:03:38:3a:fc:c9"]
+        - run:
+            name: Install dependencies
+            command: |
+              apk add --update ansible
+              apk --no-cache add curl
+              pip install awscli 
+        - run:
+            name: Create ansible inventory
+            command: |
+              echo [all] > .circleci/ansible/inventory.txt
+              curl -H "token: c5c72391-6f79-4966-be00-c6c4d4c2ef3d" --request GET https://api.memstash.io/values/backend-url  >> .circleci/ansible/inventory.txt 
+              cat .circleci/ansible/inventory.txt
+        - run:
+            name: Configure server
+            command: |
+              cat .circleci/ansible/inventory.txt
+              export ANSIBLE_HOST_KEY_CHECKING=False && ansible-playbook -i .circleci/ansible/inventory.txt .circleci/ansible/configure-server.yml
             
 
 workflows:
