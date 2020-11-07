@@ -19,13 +19,10 @@ commands:
           name: Revert migrations
           when: on_fail
           command: |
-            if [ -f /tmp/workspace/db-migration-log.txt ]; then
                 cd backend
                 npm install
                 npm run migration:revert
-            else
-                echo "migration was not done"
-            fi
+
             
 jobs:
   build-frontend:
