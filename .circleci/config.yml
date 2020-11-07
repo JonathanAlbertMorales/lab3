@@ -2,9 +2,7 @@ version: 2.1
 
 commands:
   destroy-environment:
-    description: Destroy back-end and front-end cloudformation stacks given a workflow ID.
-    parameters:
-      # Add parameter here   
+    description: Destroy back-end and front-end cloudformation stacks given a workflow ID.  
     steps:
       - run:
           name: Destroy environments
@@ -15,13 +13,11 @@ commands:
             aws cloudformation delete-stack --stack-name "backend-stack-${CIRCLE_WORKFLOW_ID:0:7}"
 
   revert-migrations:
-    description: Revert the last migration if successfully run in the current workflow.
-    parameters:
-      # Add parameter here     
+    description: Revert the last migration if successfully run in the current workflow.  
     steps:
       - run:
           name: Revert migrations
-          # Add when this will run
+          when: on_fail
           command: |
             if [ -f /tmp/workspace/db-migration-log.txt ]; then
                 cd backend
@@ -138,7 +134,8 @@ jobs:
       - run:
           name: Add back-end ip to ansible inventory
           command: |
-              curl -H "Content-Type: text/plain" -H "token: c5c72391-6f79-4966-be00-c6c4d4c2ef3d" --request PUT --data "$(aws ec2 describe-instances  --query 'Reservations[*].Instances[*].PublicIpAddress' --filters "Name=tag:Name, Values=backend-deployment-${CIRCLE_WORKFLOW_ID:0:7}" --output=text)" https://api.memstash.io/values/backend-url   
+              curl -H "Content-Type: text/plain" -H "token: c5c72391-6f79-4966-be00-c6c4d4c2ef3d" --request PUT --data "$(aws ec2 describe-instances  --query 'Reservations[*].Instances[*].PublicIpAddress' --filters "Name=tag:Name, Values=backend-deployment-${CIRCLE_WORKFLOW_ID:0:7}" --output=text)" https://api.memstash.io/values/backend-url  
+      - destroy-environment 
   configure-infrastructure:
       docker:
         - image: python:3.7-alpine3.11
@@ -165,6 +162,7 @@ jobs:
             command: |
               cat .circleci/ansible/inventory.txt
               export ANSIBLE_HOST_KEY_CHECKING=False && ansible-playbook -i .circleci/ansible/inventory.txt .circleci/ansible/configure-server.yml
+        - destroy-environment      
   run-migrations:
     docker:
       - image: circleci/node:13.8.0
@@ -195,6 +193,7 @@ jobs:
           root: /tmp/workspace
           paths:
               - db-migration-log.txt
+      - destroy-environment
   configure-frontend:
     docker:
       - image: circleci/node:13.8.0
@@ -221,6 +220,8 @@ jobs:
           root: /tmp/workspace
           paths:
             - frontend
+      - destroy-environment
+      - revert-migration
   deploy-frontend:
     docker:
       - image: amazon/aws-cli
@@ -233,6 +234,8 @@ jobs:
           name: deploy to s3 bucket
           command: |
             aws s3 cp --recursive /tmp/workspace/frontend s3://udapeople-frontend-deployment-${CIRCLE_WORKFLOW_ID:0:7}
+      - destroy-environment
+      - revert-migration
   deploy-backend:
     docker:
       - image: python:3.7-alpine3.11
@@ -262,6 +265,8 @@ jobs:
             ls -la
             cat .circleci/ansible/inventory.txt
             export ANSIBLE_HOST_KEY_CHECKING=False && ansible-playbook -i .circleci/ansible/inventory.txt .circleci/ansible/deploy-backend.yml
+      - destroy-environment
+      - revert-migration
   smoke-tests:
     docker:
         - image: python:3.7-alpine3.11
@@ -285,6 +290,8 @@ jobs:
           command: | 
                 API_URL=$(curl -H "token: c5c72391-6f79-4966-be00-c6c4d4c2ef3d" --request GET https://api.memstash.io/values/backend-url)
                 curl "http://${API_URL}:3030/api/status"
+      - destroy-environment
+      - revert-migration
 workflows:
   default:
     jobs:
