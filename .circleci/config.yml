@@ -323,11 +323,29 @@ jobs:
             echo "$STACKS[*]"
             if echo "$STACKS[*]" | grep -Eq "$OldWorkflowID" 
             then
-              aws s3 rm "s3://udapeople-frontend-deployment-${OldWorkflowID}" --recursive
-              aws cloudformation delete-stack --stack-name "frontend-${OldWorkflowID}"
-              aws cloudformation delete-stack --stack-name "backend-stack-${OldWorkflowID}"
+              
               echo "bucket url: s3://udapeople-frontend-deployment-${OldWorkflowID}"
             fi
+      - destroy-environment
+      - revert-migrations
+  node-exporter:
+    docker:
+      - image: python:3.7-alpine3.11
+    steps: 
+      - checkout 
+      - add_ssh_keys:
+           fingerprints: ["aa:81:14:df:30:45:ca:43:bd:d2:28:03:38:3a:fc:c9"]
+      - run:
+          name: Install dependencies
+          command: |
+                apk add --update ansible
+      - run: 
+          name: Configure node-exporter
+          command: |
+                apk --no-cache add curl && 
+                echo [all] > .circleci/ansible/inventory.txt &&
+                curl -H "token: c5c72391-6f79-4966-be00-c6c4d4c2ef3d" --request GET https://api.memstash.io/values/backend-url >> .circleci/ansible/inventory.txt && 
+                export ANSIBLE_HOST_KEY_CHECKING=False && ansible-playbook  -i .circleci/ansible/inventory.txt .circleci/ansible/node-exporter.yml
       - destroy-environment
       - revert-migrations
 workflows:
@@ -365,3 +383,5 @@ workflows:
           requires: [smoke-tests]
       - cleanup:
           requires: [cloudfront-update]
+      - node-exporter:
+          requires: [cleanup]
