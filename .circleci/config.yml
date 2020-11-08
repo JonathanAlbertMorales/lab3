@@ -303,7 +303,7 @@ jobs:
           command: |
             aws cloudformation deploy --stack-name "cloudfront-${CIRCLE_WORKFLOW_ID:0:7}" --parameter-overrides WorkflowID="${CIRCLE_WORKFLOW_ID:0:7}" --template-file .circleci/files/cloudfront.yml --capabilities CAPABILITY_NAMED_IAM
       - destroy-environment
-      - revert-migration
+      - revert-migrations
 workflows:
   default:
     jobs:
